@@ -1,0 +1,1911 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>إدارة المواقف العامة - نظام مراجعة واعتراضات الغرامات</title>
+  <!-- Tailwind CSS & FontAwesome -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- مكتبات التصدير إلى Excel و PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0fdf4',
+              100: '#dcfce7',
+              200: '#bbf7d0',
+              500: '#10b981',
+              600: '#059669',
+              700: '#047857',
+              800: '#065f46',
+              900: '#064e3b',
+              950: '#022c22'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;600;700;800&display=swap');
+    body { font-family: 'Tajawal', sans-serif; }
+    .badge-pending { background-color: #fef3c7; color: #92400e; }
+    .badge-correct { background-color: #d1fae5; color: #065f46; }
+    .badge-wrong { background-color: #fee2e2; color: #991b1b; }
+    .badge-supervisor { background-color: #ffedd5; color: #9a3412; }
+    .badge-info { background-color: #e0f2fe; color: #075985; }
+    .badge-re-review { background-color: #f3e8ff; color: #6b21a8; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 flex h-screen overflow-hidden">
+
+  <!-- القائمة الجانبية (RTL Sidebar) -->
+  <aside class="w-64 bg-brand-900 text-white flex flex-col justify-between shrink-0 shadow-xl z-20">
+    <div>
+      <!-- Header / Logo -->
+      <div class="p-5 border-b border-brand-800/60 flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-brand-500 flex items-center justify-center text-white text-lg font-bold shadow-md">
+          <i class="fa-solid fa-square-parking"></i>
+        </div>
+        <div>
+          <h1 class="font-bold text-sm tracking-wide text-white">إدارة المواقف العامة</h1>
+          <p class="text-xs text-brand-200">بوابة إدارة الاعتراضات</p>
+        </div>
+      </div>
+
+      <!-- Navigation -->
+      <nav class="p-3 space-y-1 text-sm font-medium">
+        <button onclick="switchTab('create')" id="nav-create" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-brand-100 transition text-right">
+          <i class="fa-solid fa-circle-plus w-5"></i> إنشـاء اعتراض
+        </button>
+        <button onclick="switchTab('review')" id="nav-review" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-brand-100 hover:bg-brand-800 transition text-right">
+          <i class="fa-solid fa-clipboard-check w-5"></i> مراجعة الاعتراضات
+        </button>
+        <button onclick="switchTab('supervisor')" id="nav-supervisor" class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-brand-100 hover:bg-brand-800 transition text-right">
+          <div class="flex items-center gap-3">
+            <i class="fa-solid fa-user-shield w-5"></i> مراجعة المشرف
+          </div>
+          <span id="sup-badge" class="bg-amber-500 text-white text-xs px-2 py-0.5 rounded-full font-bold hidden">0</span>
+        </button>
+        <button onclick="switchTab('status')" id="nav-status" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-brand-100 hover:bg-brand-800 transition text-right">
+          <i class="fa-solid fa-magnifying-glass-location w-5"></i> الحالة الحالية والاستعلام
+        </button>
+
+        <!-- خيار التقارير (الخيار الخامس) -->
+        <div>
+          <button onclick="toggleReportsSubmenu()" id="nav-reports" class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-brand-100 hover:bg-brand-800 transition text-right">
+            <div class="flex items-center gap-3">
+              <i class="fa-solid fa-chart-pie w-5"></i> التقارير
+            </div>
+            <i id="reportsSubmenuIcon" class="fa-solid fa-chevron-down text-xs transition-transform duration-200"></i>
+          </button>
+          
+          <!-- القائمة الفرعية للتقارير -->
+          <div id="reportsSubmenu" class="hidden pr-6 pt-1 space-y-1">
+            <button onclick="switchTab('rep-fines')" id="nav-rep-fines" class="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-brand-200 hover:bg-brand-800 hover:text-white transition text-right">
+              <i class="fa-solid fa-file-lines w-4"></i> تقرير المخالفات
+            </button>
+            <button onclick="switchTab('rep-review')" id="nav-rep-review" class="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-brand-200 hover:bg-brand-800 hover:text-white transition text-right">
+              <i class="fa-solid fa-users-gear w-4"></i> تقرير المراجعة
+            </button>
+          </div>
+        </div>
+      </nav>
+    </div>
+
+    <!-- User Profile Footer -->
+    <div class="p-4 border-t border-brand-800/60 bg-brand-950/40">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-full bg-brand-600 flex items-center justify-center font-bold text-white text-sm">
+          م ع
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-semibold truncate text-white">محمد الياسي</p>
+          <p class="text-xs text-brand-200 truncate">ADMIN-001 • مدير النظام</p>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT AREA -->
+  <div class="flex-1 flex flex-col h-screen overflow-hidden">
+    
+    <!-- TOP HEADER -->
+    <header class="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between z-10 shrink-0">
+      <div>
+        <h2 id="page-title" class="text-lg font-bold text-slate-800">إنشـاء اعتراض جديد</h2>
+        <p id="page-subtitle" class="text-xs text-slate-500">تقديم شكوى جديدة أو اعتراض على غرامة لمراجعتها من قبل البلدية.</p>
+      </div>
+
+      <div class="flex items-center gap-4">
+        <div class="relative w-80">
+          <i class="fa-solid fa-magnifying-glass absolute right-3 top-2.5 text-slate-400 text-sm"></i>
+          <input type="text" id="globalSearch" oninput="handleGlobalSearch(this.value)" placeholder="البحث برقم الاعتراض، رقم المخالفة، اللوحة، العميل..." 
+                 class="w-full pr-9 pl-3 py-1.5 text-xs bg-slate-100 rounded-lg border-0 focus:ring-2 focus:ring-brand-500 outline-none">
+        </div>
+
+        <!-- قائمة الوصول السريع للأنظمة -->
+        <div class="relative">
+          <button id="quickAccessBtn" onclick="toggleQuickAccess(event)" class="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-brand-50 hover:text-brand-700 rounded-lg border border-slate-200 transition">
+            <i class="fa-solid fa-link text-brand-600"></i>
+            <span>الوصول السريع للأنظمة</span>
+            <i class="fa-solid fa-chevron-down text-[10px] text-slate-400"></i>
+          </button>
+
+          <div id="quickAccessMenu" class="hidden absolute left-0 mt-2 w-64 bg-white rounded-xl shadow-lg border border-slate-200 py-2 z-50">
+            <div class="px-3 py-1.5 border-b border-slate-100 text-[11px] font-bold text-slate-400 uppercase">الأنظمة والخدمات</div>
+            <a href="https://pms.shjmun.gov.ae/login" target="_blank" class="flex items-center gap-2.5 px-3 py-2 text-xs text-slate-700 hover:bg-brand-50 hover:text-brand-700 transition">
+              <i class="fa-solid fa-parking text-brand-600 w-4"></i>
+              <span>نظام المواقف المتكامل</span>
+            </a>
+            <a href="https://mparkadmin.shjmun.gov.ae/login.page.tiles" target="_blank" class="flex items-center gap-2.5 px-3 py-2 text-xs text-slate-700 hover:bg-brand-50 hover:text-brand-700 transition">
+              <i class="fa-solid fa-comment-sms text-brand-600 w-4"></i>
+              <span>نظام الرسائل النصية</span>
+            </a>
+            <a href="https://srp.shjmun.gov.ae/login" target="_blank" class="flex items-center gap-2.5 px-3 py-2 text-xs text-slate-700 hover:bg-brand-50 hover:text-brand-700 transition">
+              <i class="fa-solid fa-road text-brand-600 w-4"></i>
+              <span>نظام المواقف الجانبية الذكية</span>
+            </a>
+            <a href="https://parkvision.shjmun.gov.ae/auth/login" target="_blank" class="flex items-center gap-2.5 px-3 py-2 text-xs text-slate-700 hover:bg-brand-50 hover:text-brand-700 transition">
+              <i class="fa-solid fa-square-parking text-brand-600 w-4"></i>
+              <span>نظام الساحات الذكية</span>
+            </a>
+            <a href="https://scanmaster.shjmun.gov.ae:4472/login" target="_blank" class="flex items-center gap-2.5 px-3 py-2 text-xs text-slate-700 hover:bg-brand-50 hover:text-brand-700 transition">
+              <i class="fa-solid fa-camera text-brand-600 w-4"></i>
+              <span>نظام المسح الرقمي</span>
+            </a>
+          </div>
+        </div>
+
+        <button class="relative p-2 text-slate-500 hover:text-brand-600 transition">
+          <i class="fa-regular fa-bell text-lg"></i>
+          <span class="absolute top-1 left-1 w-2 h-2 bg-emerald-500 rounded-full"></span>
+        </button>
+      </div>
+    </header>
+
+    <!-- CONTENT BODY (SCROLLABLE) -->
+    <main class="flex-1 overflow-y-auto p-6 bg-slate-50">
+
+      <!-- PAGE 1: CREATE APPEAL -->
+      <section id="page-create" class="max-w-5xl mx-auto space-y-6">
+        <form id="createAppealForm" onsubmit="handleCreateAppeal(event)" class="space-y-6">
+          
+          <div class="bg-white rounded-xl p-6 border border-slate-200 shadow-sm space-y-4">
+            <h3 class="font-bold text-slate-800 border-b pb-2 flex items-center gap-2 text-sm">
+              <i class="fa-solid fa-file-invoice text-brand-600"></i> القسم 1 — معلومات الاعتراض
+            </h3>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">نوع الاعتراض الرئيسي *</label>
+                <select id="mainAppealType" required onchange="togglePermitInput(this.value)" class="w-full p-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none bg-white">
+                  <option value="">اختر نوع الاعتراض الرئيسي...</option>
+                  <option value="Fines">مخالفات</option>
+                  <option value="Permit">تصريح / تصاريح</option>
+                  <option value="SMS">رسائل نصية قصيرة SMS</option>
+                  <option value="Smart Yards">الساحات الذكية</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">نوع الاعتراض الفرعي (اختياري)</label>
+                <select id="subAppealType" class="w-full p-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none bg-white">
+                  <option value="">-- لا يوجد (اختياري) --</option>
+                  <option value="Service Outage">انقطاع الخدمة</option>
+                  <option value="Payment Deducted">تم خصم المبلغ</option>
+                  <option value="Service Failed">فشل الخدمة</option>
+                </select>
+              </div>
+
+              <div id="permitNumContainer" class="hidden">
+                <label class="block text-xs font-semibold text-amber-700 mb-1">رقم التصريح *</label>
+                <input type="text" id="permitNumber" placeholder="مثال: PRM-2026-8821" class="w-full p-2 text-xs border border-amber-300 bg-amber-50 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none font-mono">
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">رقم المخالفة *</label>
+                <input type="text" id="fineNumber" required placeholder="أدخل رقم المخالفة" value="172000103" class="w-full p-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none font-mono">
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">رقم تذكرة SMS (اختياري)</label>
+                <input type="text" id="smsTicketNumber" placeholder="أدخل رقم تذكرة SMS" class="w-full p-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none font-mono">
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">تاريخ المخالفة *</label>
+                <input type="date" id="fineDate" required class="w-full p-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none">
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-xl p-6 border border-slate-200 shadow-sm space-y-4">
+            <h3 class="font-bold text-slate-800 border-b pb-2 flex items-center gap-2 text-sm">
+              <i class="fa-solid fa-car text-brand-600"></i> القسم 2 — تفاصيل المركبة
+            </h3>
+
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">مصدر اللوحة *</label>
+                <select id="plateSource" onchange="updatePlateCodes();" class="w-full p-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none">
+                  <option value="SHJ">الشارقة (SHJ)</option>
+                  <option value="DXB">دبي (DXB)</option>
+                  <option value="AUH">أبوظبي (AUH)</option>
+                  <option value="AJM">عجمان (AJM)</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">نوع اللوحة *</label>
+                <select id="plateType" class="w-full p-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none">
+                  <option value="Private">خصوصي</option>
+                  <option value="Public">عمومي</option>
+                  <option value="Commercial">تجاري</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">رمز اللوحة *</label>
+                <select id="plateCode" class="w-full p-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none">
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">رقم اللوحة *</label>
+                <input type="text" id="plateNumber" required placeholder="أدخل رقم اللوحة" value="12345" class="w-full p-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none font-bold">
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-xl p-6 border border-slate-200 shadow-sm space-y-4">
+            <h3 class="font-bold text-slate-800 border-b pb-2 flex items-center gap-2 text-sm">
+              <i class="fa-solid fa-user text-brand-600"></i> القسم 3 — تفاصيل المتعامل
+            </h3>
+
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">اسم المتعامل *</label>
+                <input type="text" id="custName" required placeholder="أدخل الاسم الكامل" value="خالد النعيمي" class="w-full p-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">رقم الهوية *</label>
+                <input type="text" id="custEid" required placeholder="784-XXXX-XXXXXXX-X" value="784-1990-1234567-1" class="w-full p-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none font-mono">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">رقم الهاتف *</label>
+                <input type="tel" id="custPhone" required placeholder="أدخل رقم الهاتف" value="+971 50 987 6543" class="w-full p-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">البريد الإلكتروني *</label>
+                <input type="email" id="custEmail" required placeholder="أدخل البريد الإلكتروني" value="khalid@example.ae" class="w-full p-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none">
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-xl p-6 border border-slate-200 shadow-sm space-y-4">
+            <h3 class="font-bold text-slate-800 border-b pb-2 flex items-center gap-2 text-sm">
+              <i class="fa-solid fa-align-left text-brand-600"></i> القسم 4 — وصف الشكوى
+            </h3>
+
+            <div>
+              <textarea id="complaintDesc" required maxlength="2000" rows="3" placeholder="اشرح تفاصيل الشكوى..." class="w-full p-2.5 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none"></textarea>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-xl p-6 border border-slate-200 shadow-sm space-y-4">
+            <h3 class="font-bold text-slate-800 border-b pb-2 flex items-center gap-2 text-sm">
+              <i class="fa-solid fa-paper-plane text-brand-600"></i> القسم 5 — التوجيه والموظف المعني
+            </h3>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">الأقسام والفرق *</label>
+                <select id="sendToDivision" required onchange="updateEmployeeOptions()" class="w-full p-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none bg-white font-semibold text-brand-800">
+                  <option value="">اختر القسم أو الفريق...</option>
+                  <option value="Objections Team">فريق الإعتراضات والشكاوي</option>
+                  <option value="Control Room">غرفة التحكم</option>
+                  <option value="Parking Services">خدمات المواقف</option>
+                  <option value="Inspection">تفتيش المواقف</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">اسم الموظف المشرف/المراجع المباشر *</label>
+                <select id="assignedEmployee" required class="w-full p-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none bg-white font-semibold text-slate-800">
+                  <option value="">اختر القسم أولاً...</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-end gap-3 pt-2">
+            <button type="submit" class="px-6 py-2.5 text-xs font-bold text-white bg-brand-600 hover:bg-brand-700 rounded-lg shadow-md transition flex items-center gap-2">
+              <i class="fa-solid fa-paper-plane"></i> تقديم الاعتراض
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <!-- PAGE 2: REVIEW APPEALS -->
+      <section id="page-review" class="hidden space-y-4">
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-wrap gap-3 items-center justify-between">
+          <div class="flex gap-2 items-center">
+            <input type="text" id="reviewSearch" oninput="renderReviewTable()" placeholder="البحث برقم المخالفة / رقم الاعتراض..." class="p-2 text-xs border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-brand-500 w-64">
+            <button onclick="renderReviewTable()" class="px-3 py-2 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium"><i class="fa-solid fa-arrows-rotate"></i> تحديث</button>
+          </div>
+          
+          <!-- خيارات استخراج التقرير -->
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-semibold text-slate-500">استخراج التقرير:</span>
+            <button onclick="exportToExcel('review')" class="px-3 py-1.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow transition flex items-center gap-1.5">
+              <i class="fa-solid fa-file-excel text-sm"></i> Excel
+            </button>
+            <button onclick="exportToPDF('review')" class="px-3 py-1.5 text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white rounded-lg shadow transition flex items-center gap-1.5">
+              <i class="fa-solid fa-file-pdf text-sm"></i> PDF
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <table class="w-full text-right text-xs">
+            <thead class="bg-slate-100 text-slate-700 uppercase font-semibold border-b border-slate-200">
+              <tr>
+                <th class="p-3">رقم الاعتراض / المخالفة</th>
+                <th class="p-3">معلومات اللوحة</th>
+                <th class="p-3">المتعامل</th>
+                <th class="p-3">تاريخ الشكوى</th>
+                <th class="p-3">القسم / الموظف المسؤول</th>
+                <th class="p-3">الحالة</th>
+                <th class="p-3 text-left">الإجراءات</th>
+              </tr>
+            </thead>
+            <tbody id="reviewTableBody" class="divide-y divide-slate-100">
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- PAGE 3: SUPERVISOR REVIEW -->
+      <section id="page-supervisor" class="hidden space-y-4">
+        <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between gap-3 text-xs text-amber-800">
+          <div class="flex items-center gap-3">
+            <i class="fa-solid fa-shield-halved text-lg text-amber-600"></i>
+            <div>
+              <p class="font-bold">قائمة مراجعة وتدقيق المشرفين (رؤساء الأقسام)</p>
+              <p>الحالات المحالة لرؤساء الأقسام للتدقيق والاعتماد النهائي، أو طلب إعادة مراجعة الحالة من الموظف المعني.</p>
+            </div>
+          </div>
+          <!-- خيارات استخراج التقرير للمشرفين -->
+          <div class="flex items-center gap-2">
+            <button onclick="exportToExcel('supervisor')" class="px-3 py-1.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow transition flex items-center gap-1.5">
+              <i class="fa-solid fa-file-excel text-sm"></i> Excel
+            </button>
+            <button onclick="exportToPDF('supervisor')" class="px-3 py-1.5 text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white rounded-lg shadow transition flex items-center gap-1.5">
+              <i class="fa-solid fa-file-pdf text-sm"></i> PDF
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <table class="w-full text-right text-xs">
+            <thead class="bg-slate-100 text-slate-700 uppercase font-semibold border-b border-slate-200">
+              <tr>
+                <th class="p-3">رقم الاعتراض / المخالفة</th>
+                <th class="p-3">معلومات اللوحة</th>
+                <th class="p-3">النوع الرئيسي</th>
+                <th class="p-3">المراجع الأول (الموظف)</th>
+                <th class="p-3">التوجيه المطلوب</th>
+                <th class="p-3">الحالة</th>
+                <th class="p-3 text-left">الإجراءات</th>
+              </tr>
+            </thead>
+            <tbody id="supervisorTableBody" class="divide-y divide-slate-100">
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- PAGE 4: CURRENT STATUS & CUSTOMER SERVICE LOOKUP -->
+      <section id="page-status" class="hidden max-w-4xl mx-auto space-y-6">
+        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm text-center space-y-4">
+          <h3 class="text-base font-bold text-slate-800 flex items-center justify-center gap-2">
+            <i class="fa-solid fa-headset text-brand-600"></i> استعلام واستكشاف حالة المخالفة (خاص بفيوز الموظفين وخدمة العملاء)
+          </h3>
+          <p class="text-xs text-slate-500">أدخل رقم المخالفة أو رقم الاعتراض أو رقم اللوحة لعرض كافة تفاصيل الشكوى، الموظف/رئيس القسم المسؤول الحالي، وسجل القرارات الكامل.</p>
+          <div class="flex gap-2 max-w-lg mx-auto">
+            <input type="text" id="statusSearchInput" placeholder="أدخل رقم المخالفة أو رقم الاعتراض (مثال: 172000101)..." class="flex-1 p-2.5 text-xs border border-slate-300 rounded-lg outline-none font-mono focus:ring-2 focus:ring-brand-500">
+            <button onclick="searchCurrentStatus()" class="px-6 py-2.5 bg-brand-600 text-white rounded-lg text-xs font-bold hover:bg-brand-700 shadow flex items-center gap-2">
+              <i class="fa-solid fa-magnifying-glass"></i> استعلام
+            </button>
+          </div>
+        </div>
+
+        <div id="statusResultContainer" class="hidden space-y-6">
+        </div>
+      </section>
+
+      <!-- PAGE 5-A: FINES REPORT (تقرير المخالفات) -->
+      <section id="page-rep-fines" class="hidden space-y-4">
+        <!-- الفلاتر -->
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
+          <div class="flex items-center justify-between border-b pb-3">
+            <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+              <i class="fa-solid fa-filter text-brand-600"></i> تصفية فلترة تقرير المخالفات
+            </h3>
+            <button onclick="resetFinesReportFilters()" class="text-xs text-brand-700 hover:underline font-semibold">
+              <i class="fa-solid fa-rotate-left"></i> إعادة ضبط الفلاتر
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
+            <!-- فلتر اختيار الحالة (متعدد) -->
+            <div class="col-span-1 md:col-span-2">
+              <label class="block font-semibold text-slate-700 mb-1">حالة المخالفة (يمكن اختيار أكثر من خيار):</label>
+              <div class="flex flex-wrap gap-3 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                <label class="flex items-center gap-1.5 cursor-pointer">
+                  <input type="checkbox" value="Correct" class="fineStatusFilter rounded text-brand-600 focus:ring-brand-500" onchange="renderFinesReportTable()">
+                  <span class="text-emerald-800 font-semibold">مخالفات صحيحة</span>
+                </label>
+                <label class="flex items-center gap-1.5 cursor-pointer">
+                  <input type="checkbox" value="Wrong" class="fineStatusFilter rounded text-brand-600 focus:ring-brand-500" onchange="renderFinesReportTable()">
+                  <span class="text-rose-800 font-semibold">مخالفات خاطئة</span>
+                </label>
+                <label class="flex items-center gap-1.5 cursor-pointer">
+                  <input type="checkbox" value="Pending" class="fineStatusFilter rounded text-brand-600 focus:ring-brand-500" onchange="renderFinesReportTable()">
+                  <span class="text-amber-800 font-semibold">بانتظار المراجعة</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- فلتر التاريخ (من - إلى) -->
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">تاريخ المخالفة (من):</label>
+              <input type="date" id="fineDateFrom" onchange="renderFinesReportTable()" class="w-full p-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-brand-500 bg-white">
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">تاريخ المخالفة (إلى):</label>
+              <input type="date" id="fineDateTo" onchange="renderFinesReportTable()" class="w-full p-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-brand-500 bg-white">
+            </div>
+
+            <!-- فلتر موظف مدخل الطلب -->
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">موظف مدخل الطلب:</label>
+              <select id="creatorEmpFilter" onchange="renderFinesReportTable()" class="w-full p-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-brand-500 bg-white">
+                <option value="">جميع الموظفين المدخلين</option>
+              </select>
+            </div>
+
+            <!-- فلتر موظف القرار النهائي -->
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">موظف القرار النهائي:</label>
+              <select id="finalDecEmpFilter" onchange="renderFinesReportTable()" class="w-full p-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-brand-500 bg-white">
+                <option value="">جميع صاحبي القرار النهائي</option>
+              </select>
+            </div>
+
+            <!-- أزرار التصدير -->
+            <div class="col-span-1 md:col-span-2 flex items-end justify-end gap-2">
+              <button onclick="exportFinesReportToExcel()" class="px-4 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow transition flex items-center gap-1.5">
+                <i class="fa-solid fa-file-excel text-sm"></i> تصدير Excel
+              </button>
+              <button onclick="exportFinesReportToPDF()" class="px-4 py-2 text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white rounded-lg shadow transition flex items-center gap-1.5">
+                <i class="fa-solid fa-file-pdf text-sm"></i> تصدير PDF
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- جدول المخالفات -->
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <table class="w-full text-right text-xs">
+            <thead class="bg-slate-100 text-slate-700 uppercase font-semibold border-b border-slate-200">
+              <tr>
+                <th class="p-3">رقم الاعتراض / المخالفة</th>
+                <th class="p-3">اللوحة</th>
+                <th class="p-3">تاريخ المخالفة</th>
+                <th class="p-3">مدخل الطلب</th>
+                <th class="p-3">صاحب القرار النهائي</th>
+                <th class="p-3">الحالة النهائية</th>
+              </tr>
+            </thead>
+            <tbody id="finesReportTableBody" class="divide-y divide-slate-100">
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- PAGE 5-B: REVIEWS REPORT (تقرير المراجعة) -->
+      <section id="page-rep-review" class="hidden space-y-4">
+        <!-- الفلاتر -->
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
+          <div class="flex items-center justify-between border-b pb-3">
+            <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+              <i class="fa-solid fa-filter text-brand-600"></i> فلترة تقرير أداء المراجعين
+            </h3>
+            <button onclick="resetReviewReportFilters()" class="text-xs text-brand-700 hover:underline font-semibold">
+              <i class="fa-solid fa-rotate-left"></i> إعادة ضبط الفلاتر
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
+            <!-- فلتر الاسم -->
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">اسم الموظف المراجع:</label>
+              <select id="reviewEmpFilter" onchange="renderReviewReportTable()" class="w-full p-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-brand-500 bg-white">
+                <option value="">جميع الموظفين</option>
+              </select>
+            </div>
+
+            <!-- فلتر التاريخ (من - إلى) -->
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">التاريخ (من):</label>
+              <input type="date" id="revDateFrom" onchange="renderReviewReportTable()" class="w-full p-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-brand-500 bg-white">
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">التاريخ (إلى):</label>
+              <input type="date" id="revDateTo" onchange="renderReviewReportTable()" class="w-full p-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-brand-500 bg-white">
+            </div>
+
+            <!-- فلتر كم حالة ما زالت بانتظار المراجعة -->
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">حالات بانتظار المراجعة:</label>
+              <select id="pendingCasesFilter" onchange="renderReviewReportTable()" class="w-full p-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-brand-500 bg-white">
+                <option value="">الكل</option>
+                <option value="has_pending">لديه حالات بانتظار المراجعة (> 0)</option>
+                <option value="no_pending">لا توجد حالات بانتظار المراجعة (= 0)</option>
+              </select>
+            </div>
+
+            <!-- فلتر الحالات المنتهية -->
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">الحالات المنتهية:</label>
+              <select id="completedCasesFilter" onchange="renderReviewReportTable()" class="w-full p-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-brand-500 bg-white">
+                <option value="">الكل</option>
+                <option value="has_completed">لديه حالات منتهية (> 0)</option>
+                <option value="no_completed">لا توجد حالات منتهية (= 0)</option>
+              </select>
+            </div>
+
+            <!-- أزرار التصدير -->
+            <div class="col-span-1 md:col-span-3 flex items-end justify-end gap-2">
+              <button onclick="exportReviewReportToExcel()" class="px-4 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow transition flex items-center gap-1.5">
+                <i class="fa-solid fa-file-excel text-sm"></i> تصدير Excel
+              </button>
+              <button onclick="exportReviewReportToPDF()" class="px-4 py-2 text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white rounded-lg shadow transition flex items-center gap-1.5">
+                <i class="fa-solid fa-file-pdf text-sm"></i> تصدير PDF
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- جدول أداء الموظفين المراجعين -->
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <table class="w-full text-right text-xs">
+            <thead class="bg-slate-100 text-slate-700 uppercase font-semibold border-b border-slate-200">
+              <tr>
+                <th class="p-3">اسم الموظف المراجع</th>
+                <th class="p-3">إجمالي الحالات الموكلة</th>
+                <th class="p-3">حالات بانتظار المراجعة</th>
+                <th class="p-3">الحالات المنتهية (تم اتخاذ قرار)</th>
+                <th class="p-3">نسبة الإنجاز</th>
+              </tr>
+            </thead>
+            <tbody id="reviewReportTableBody" class="divide-y divide-slate-100">
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- REVIEW CASE DRAWER (MODAL DRAWER) -->
+  <div id="reviewDrawer" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex justify-start">
+    <div class="w-full max-w-2xl bg-white h-full shadow-2xl flex flex-col justify-between overflow-y-auto p-6 space-y-6">
+      
+      <div>
+        <!-- Drawer Title Header -->
+        <div class="flex items-center justify-between border-b pb-3">
+          <div>
+            <h3 class="font-bold text-slate-800 text-sm" id="drawerTitle">مراجعة حالة الاعتراض</h3>
+            <p class="text-xs text-slate-500 font-mono" id="drawerAppealId">APP-172000101</p>
+          </div>
+          <button onclick="closeDrawer()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+        </div>
+
+        <div class="space-y-4 py-4 text-xs">
+          <!-- Main Ticket Details -->
+          <div class="grid grid-cols-2 gap-3 p-3 bg-slate-50 rounded-lg border">
+            <div><span class="text-slate-400">رقم المخالفة:</span> <strong class="font-mono text-slate-800" id="drawerFineNo">-</strong></div>
+            <div><span class="text-slate-400">تاريخ المخالفة:</span> <strong id="drawerFineDate">-</strong></div>
+            <div><span class="text-slate-400">المتعامل:</span> <strong id="drawerCustName">-</strong></div>
+            <div><span class="text-slate-400">رقم الهوية:</span> <strong id="drawerCustEid" class="font-mono text-slate-800">-</strong></div>
+            <div><span class="text-slate-400">الهاتف:</span> <strong id="drawerCustPhone">-</strong></div>
+            <div><span class="text-slate-400">البريد الإلكتروني:</span> <strong id="drawerCustEmail" class="text-slate-800">-</strong></div>
+            <div><span class="text-slate-400">رقم التصريح:</span> <strong id="drawerPermitNo" class="text-amber-700">-</strong></div>
+            <div><span class="text-slate-400">تذكرة SMS:</span> <strong id="drawerSmsNo">-</strong></div>
+            <div class="col-span-2 border-t pt-1 mt-1"><span class="text-slate-400">الموظف/المشرف المسؤول الحالي:</span> <strong id="drawerCurrentEmployee" class="text-brand-700 font-bold">-</strong></div>
+          </div>
+
+          <!-- Description -->
+          <div class="p-3 bg-slate-50 rounded-lg border">
+            <p class="text-slate-400 mb-1">وصف الشكوى الأصلي:</p>
+            <p class="text-slate-800 italic" id="drawerDesc">-</p>
+          </div>
+
+          <!-- BOX: PREVIOUS DECISIONS & DIRECTIVES LOG (صندوق القرارات السابقة) -->
+          <div class="p-3.5 bg-blue-50/60 border border-blue-200 rounded-xl space-y-2.5">
+            <div class="flex items-center justify-between border-b border-blue-200/80 pb-2">
+              <h4 class="font-bold text-blue-900 text-xs flex items-center gap-1.5">
+                <i class="fa-solid fa-clock-rotate-left text-blue-600"></i> صندوق القرارات والتوجيهات السابقة
+              </h4>
+              <span class="text-[10px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-semibold" id="historyCount">0 قرارات</span>
+            </div>
+
+            <div id="previousDecisionsContainer" class="space-y-2 max-h-48 overflow-y-auto pr-1">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <!-- Select Review Decision Header -->
+          <div class="pt-2 space-y-3">
+            <h4 class="font-bold text-slate-800 text-xs">اختر قرار المراجعة الجديد *</h4>
+            
+            <!-- Dynamic Buttons with 4 Options Grid -->
+            <div id="reviewerButtons" class="grid grid-cols-2 md:grid-cols-4 gap-2">
+              
+              <!-- 1. المخالفة صحيحة -->
+              <button type="button" onclick="selectDecision('Correct Fine')" id="btnDecCorrect" class="p-2.5 rounded-lg border-2 border-slate-200 hover:border-emerald-500 text-center transition">
+                <i class="fa-solid fa-circle-check text-emerald-600 text-base block mb-1"></i>
+                <span class="font-bold text-slate-700 block text-[11px]">مخالفة صحيحة</span>
+              </button>
+
+              <!-- 2. المخالفة خاطئة -->
+              <button type="button" onclick="selectDecision('Wrong Fine')" id="btnDecWrong" class="p-2.5 rounded-lg border-2 border-slate-200 hover:border-rose-500 text-center transition">
+                <i class="fa-solid fa-circle-xmark text-rose-600 text-base block mb-1"></i>
+                <span class="font-bold text-slate-700 block text-[11px]">مخالفة خاطئة</span>
+              </button>
+
+              <!-- 3. تصعيد لرئيس القسم / طلب إعادة مراجعة -->
+              <button type="button" onclick="selectDecision('Supervisor Review')" id="btnDecSup" class="p-2.5 rounded-lg border-2 border-slate-200 hover:border-amber-500 text-center transition">
+                <i class="fa-solid fa-user-shield text-amber-600 text-base block mb-1"></i>
+                <span class="font-bold text-slate-700 block text-[11px]" id="btnDecSupLabel">تصعيد لرئيس القسم</span>
+              </button>
+
+              <!-- 4. الخيار الرابع الجديد: إرسال إلى موظف -->
+              <button type="button" onclick="selectDecision('Forward To Employee')" id="btnDecForwardEmp" class="p-2.5 rounded-lg border-2 border-slate-200 hover:border-indigo-500 text-center transition">
+                <i class="fa-solid fa-share-nodes text-indigo-600 text-base block mb-1"></i>
+                <span class="font-bold text-slate-700 block text-[11px]">إرسال إلى موظف</span>
+              </button>
+
+            </div>
+
+            <!-- Dynamic Forward Select Container -->
+            <div id="dynamicForwardOptions" class="space-y-3 pt-1">
+              
+              <!-- Supervisor Select (For escalation) -->
+              <div id="supHeadContainer" class="hidden">
+                <label class="block text-xs font-semibold text-amber-800 mb-1">اختر رئيس القسم المشرف *</label>
+                <select id="supervisorHeadSelect" class="w-full p-2 text-xs border border-amber-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none bg-amber-50 font-semibold text-slate-800">
+                  <option value="">اختر رئيس القسم...</option>
+                  <option value="رئيس قسم غرفة التحكم">رئيس قسم غرفة التحكم</option>
+                  <option value="رئيس قسم خدمات المواقف">رئيس قسم خدمات المواقف</option>
+                  <option value="رئيس قسم تفتيش المواقف">رئيس قسم تفتيش المواقف</option>
+                </select>
+              </div>
+
+              <!-- Forward to Employee Container (For 'إرسال إلى موظف' option) -->
+              <div id="empForwardContainer" class="hidden space-y-3">
+                <div class="p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
+                  <p class="text-xs font-bold text-indigo-900 mb-2"><i class="fa-solid fa-user-pen"></i> تحويل الشكوى إلى موظف جديد للمتابعة</p>
+                  <div class="grid grid-cols-2 gap-3">
+                    <div>
+                      <label class="block text-[11px] font-semibold text-indigo-800 mb-1">الفريق / القسم *</label>
+                      <select id="empTeamSelect" onchange="updateTeamMembersOptions()" class="w-full p-2 text-xs border border-indigo-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white font-semibold text-slate-800">
+                        <option value="">اختر القسم / الفريق...</option>
+                        <option value="Objections Team">فريق الإعتراضات والشكاوي</option>
+                        <option value="Control Room">غرفة التحكم</option>
+                        <option value="Parking Services">خدمات المواقف</option>
+                        <option value="Inspection">تفتيش المواقف</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label class="block text-[11px] font-semibold text-indigo-800 mb-1">الموظف المعني بالمراجعة *</label>
+                      <select id="teamMemberSelect" class="w-full p-2 text-xs border border-indigo-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white font-semibold text-slate-800">
+                        <option value="">اختر الفريق أولاً...</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            <div>
+              <label id="notesLabel" class="block text-xs font-semibold text-slate-700 mb-1">ملاحظات / أسباب القرار والتوجيه *</label>
+              <textarea id="drawerNotes" rows="3" placeholder="أدخل أسباب القرار أو التوجيهات التفصيلية للموظف المعني..." class="w-full p-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 outline-none"></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="border-t pt-4 flex gap-3">
+        <button onclick="submitDrawerDecision()" class="flex-1 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-lg text-xs shadow transition">حفظ القرار النهائي / التوجيه</button>
+        <button onclick="closeDrawer()" class="px-4 py-2.5 bg-slate-100 text-slate-600 rounded-lg text-xs font-medium">إلغاء</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- JavaScript Code -->
+  <script>
+    function toggleQuickAccess(e) {
+      e.stopPropagation();
+      const menu = document.getElementById('quickAccessMenu');
+      menu.classList.toggle('hidden');
+    }
+
+    function toggleReportsSubmenu() {
+      const submenu = document.getElementById('reportsSubmenu');
+      const icon = document.getElementById('reportsSubmenuIcon');
+      submenu.classList.toggle('hidden');
+      if (submenu.classList.contains('hidden')) {
+        icon.classList.remove('rotate-180');
+      } else {
+        icon.classList.add('rotate-180');
+      }
+    }
+
+    window.addEventListener('click', function(e) {
+      const menu = document.getElementById('quickAccessMenu');
+      const btn = document.getElementById('quickAccessBtn');
+      if (menu && !menu.classList.contains('hidden') && !menu.contains(e.target) && !btn.contains(e.target)) {
+        menu.classList.add('hidden');
+      }
+    });
+
+    const employeesByDept = {
+      "Objections Team": ["سمير المزروعي", "محمد محسني"],
+      "Control Room": ["جاسم بوموزة", "خميس البلوشي"],
+      "Parking Services": ["سليمان طالب", "سعيد طالب"],
+      "Inspection": ["أحمد عبدالله عباس", "عبدالله إسلامي"]
+    };
+
+    function updateEmployeeOptions() {
+      const deptSelect = document.getElementById('sendToDivision');
+      const empSelect = document.getElementById('assignedEmployee');
+      const selectedDept = deptSelect.value;
+      empSelect.innerHTML = '';
+
+      if (selectedDept && employeesByDept[selectedDept]) {
+        const defaultOpt = document.createElement('option');
+        defaultOpt.value = ''; defaultOpt.textContent = 'اختر الموظف...';
+        empSelect.appendChild(defaultOpt);
+        employeesByDept[selectedDept].forEach(emp => {
+          const opt = document.createElement('option');
+          opt.value = emp; opt.textContent = emp;
+          empSelect.appendChild(opt);
+        });
+      } else {
+        const defaultOpt = document.createElement('option');
+        defaultOpt.value = ''; defaultOpt.textContent = 'اختر القسم أولاً...';
+        empSelect.appendChild(defaultOpt);
+      }
+    }
+
+    function updateTeamMembersOptions() {
+      const teamSelect = document.getElementById('empTeamSelect');
+      const memberSelect = document.getElementById('teamMemberSelect');
+      const selectedTeam = teamSelect.value;
+      memberSelect.innerHTML = '';
+
+      if (selectedTeam && employeesByDept[selectedTeam]) {
+        const defaultOpt = document.createElement('option');
+        defaultOpt.value = ''; defaultOpt.textContent = 'اختر الموظف...';
+        memberSelect.appendChild(defaultOpt);
+        employeesByDept[selectedTeam].forEach(mem => {
+          const opt = document.createElement('option');
+          opt.value = mem; opt.textContent = mem;
+          memberSelect.appendChild(opt);
+        });
+      } else {
+        const defaultOpt = document.createElement('option');
+        defaultOpt.value = ''; defaultOpt.textContent = 'اختر القسم أولاً...';
+        memberSelect.appendChild(defaultOpt);
+      }
+    }
+
+    let mockData = [
+      { 
+        id: "APP-172000101", 
+        fineNo: "172000101", 
+        fineDate: "2026-10-01", 
+        plate: "SHJ | أ | 12345", 
+        mainType: "Fines", 
+        custName: "خالد النعيمي", 
+        custEid: "784-1990-1234567-1", 
+        custPhone: "+971 50 987 6543", 
+        custEmail: "khalid.alnaqbi@example.ae",
+        permitNo: "لا يوجد", 
+        smsNo: "SMS-99201", 
+        sender: "محمد محسني", 
+        division: "Objections Team", 
+        employee: "سمير المزروعي", 
+        status: "Pending Review", 
+        desc: "تم دفع تذكرة مواقف عبر التطبيق ولكن صدرت المخالفة برقم خاطئ.",
+        history: [
+          { date: "2026-10-01 09:30", user: "محمد محسني (موظف إدخال)", role: "إنشاء الطلب", action: "تقديم اعتراض جديد", notes: "تم استلام الطلب وتوجيهه إلى فريق الاعتراضات." }
+        ]
+      },
+      { 
+        id: "APP-172000102", 
+        fineNo: "172000102", 
+        fineDate: "2026-10-02", 
+        plate: "DXB | B | 98765", 
+        mainType: "Permit", 
+        custName: "مريم الحوسني", 
+        custEid: "784-1988-7654321-2", 
+        custPhone: "+971 50 111 2233", 
+        custEmail: "maryam.h@example.ae",
+        permitNo: "PRM-2026-0012", 
+        smsNo: "لا يوجد", 
+        sender: "سعيد طالب", 
+        division: "Parking Services", 
+        employee: "رئيس قسم خدمات المواقف", 
+        status: "Supervisor Review", 
+        desc: "لدي تصريح فعال لكبار السن ولم يتم خصمه تلقائياً من قبل الماسح الضوئي.",
+        history: [
+          { date: "2026-10-02 10:15", user: "سعيد طالب (موظف خدمة العملاء)", role: "إنشاء الطلب", action: "تقديم اعتراض جديد", notes: "تم تسجيل اعتراض بوجود تصريح فعال." },
+          { date: "2026-10-02 11:40", user: "سليمان طالب (المراجع الأول - موظف خدمات المواقف)", role: "مراجعة أولية", action: "تحويل إلى رئيس القسم", notes: "يرجى التكرم بالإلغاء النهائي للمخالفة لوجود تصريح كبار السن فعال في نظام التصاريح." }
+        ]
+      },
+      { 
+        id: "APP-172000103", 
+        fineNo: "172000103", 
+        fineDate: "2026-10-05", 
+        plate: "AUH | A | 55432", 
+        mainType: "Fines", 
+        custName: "عمر سالم الظاهري", 
+        custEid: "784-1985-3344556-9", 
+        custPhone: "+971 50 444 5566", 
+        custEmail: "omar.aldhahri@example.ae",
+        permitNo: "لا يوجد", 
+        smsNo: "SMS-88412", 
+        sender: "جاسم بوموزة", 
+        division: "Control Room", 
+        employee: "خميس البلوشي", 
+        status: "Re-Review Request", 
+        desc: "تم سداد رسوم التذكرة النصية ولكن ظهرت حالة الفشل في التطبيق.",
+        history: [
+          { date: "2026-10-05 08:20", user: "خميس البلوشي (موظف غرفة التحكم)", role: "مراجعة أولية", action: "حالة مرسلة", notes: "عطل في نظام الرسائل النصية ادى لعدم نجاح عملية الحجز" },
+          { date: "2026-10-05 09:15", user: "رئيس قسم غرفة التحكم", role: "طلب إعادة مراجعة", action: "توجيه للموظف المختص", notes: "يرجى إرسال اثبات على عدم نجاح عملية السداد" }
+        ]
+      },
+      { 
+        id: "APP-172000104", 
+        fineNo: "172000104", 
+        fineDate: "2026-09-28", 
+        plate: "SHJ | ب | 77123", 
+        mainType: "Fines", 
+        custName: "أحمد بن علي", 
+        custEid: "784-1992-9988776-5", 
+        custPhone: "+971 55 333 4455", 
+        custEmail: "ahmed.ali@example.ae",
+        permitNo: "لا يوجد", 
+        smsNo: "SMS-11022", 
+        sender: "سمير المزروعي", 
+        division: "Inspection", 
+        employee: "أحمد عبدالله عباس", 
+        status: "مخالفة صحيحة (مرفوض)", 
+        desc: "وقوف خاطئ خلف السيارات.",
+        history: [
+          { date: "2026-09-28 12:00", user: "سمير المزروعي (موظف إدخال)", role: "إنشاء الطلب", action: "تقديم اعتراض جديد", notes: "تم تسجيل الشكوى." },
+          { date: "2026-09-29 09:00", user: "أحمد عبدالله عباس", role: "القرار النهائي", action: "تأكيد المخالفة (صحيحة)", notes: "الصور المرفقة تؤكد إعاقة الحركة." }
+        ]
+      },
+      { 
+        id: "APP-172000105", 
+        fineNo: "172000105", 
+        fineDate: "2026-09-30", 
+        plate: "AJM | C | 44102", 
+        mainType: "SMS", 
+        custName: "سارة الملا", 
+        custEid: "784-1995-2233441-0", 
+        custPhone: "+971 52 666 7788", 
+        custEmail: "sara.mulla@example.ae",
+        permitNo: "لا يوجد", 
+        smsNo: "SMS-55611", 
+        sender: "محمد محسني", 
+        division: "Control Room", 
+        employee: "جاسم بوموزة", 
+        status: "مخالفة خاطئة (ملغاة)", 
+        desc: "خطأ في رمز المنطقة بالرسالة.",
+        history: [
+          { date: "2026-09-30 14:10", user: "محمد محسني (موظف إدخال)", role: "إنشاء الطلب", action: "تقديم اعتراض جديد", notes: "طلب مراجعة التذكرة." },
+          { date: "2026-10-01 10:30", user: "جاسم بوموزة", role: "القرار النهائي", action: "إلغاء المخالفة (خاطئة)", notes: "تم التحقق وتبين وجود خلل في تحويل رمز المنطقة." }
+        ]
+      }
+    ];
+
+    let activeCaseId = null;
+    let currentTabMode = 'review'; 
+    let selectedDecisionType = "Correct Fine";
+
+    function switchTab(tab) {
+      currentTabMode = tab;
+      const tabs = ['create', 'review', 'supervisor', 'status', 'rep-fines', 'rep-review'];
+      
+      tabs.forEach(t => {
+        const p = document.getElementById('page-' + t);
+        if (p) p.classList.add('hidden');
+
+        const n = document.getElementById('nav-' + t);
+        if (n) {
+          n.classList.remove('bg-brand-800', 'font-bold', 'text-white');
+          n.classList.add('text-brand-100');
+        }
+      });
+
+      const activePage = document.getElementById('page-' + tab);
+      if (activePage) activePage.classList.remove('hidden');
+
+      const activeNav = document.getElementById('nav-' + tab);
+      if (activeNav) {
+        activeNav.classList.add('bg-brand-800', 'font-bold', 'text-white');
+        activeNav.classList.remove('text-brand-100');
+      }
+
+      // إذا كانت إحدى صفحات التقارير، نضمن إظهار القائمة الفرعية
+      if (tab === 'rep-fines' || tab === 'rep-review') {
+        document.getElementById('reportsSubmenu').classList.remove('hidden');
+        document.getElementById('reportsSubmenuIcon').classList.add('rotate-180');
+        document.getElementById('nav-reports').classList.add('bg-brand-800');
+      } else {
+        document.getElementById('nav-reports').classList.remove('bg-brand-800');
+      }
+
+      const titleEl = document.getElementById('page-title');
+      const subEl = document.getElementById('page-subtitle');
+
+      if (tab === 'create') {
+        titleEl.innerText = 'إنشـاء اعتراض جديد';
+        subEl.innerText = 'تقديم شكوى جديدة أو اعتراض على غرامة لمراجعتها من قبل البلدية.';
+      } else if (tab === 'review') {
+        titleEl.innerText = 'مراجعة الاعتراضات';
+        subEl.innerText = 'مراجعة طلبات الاعتراض المقدمة وتأكيد القرار أولياً بواسطة الموظف المختص.';
+        renderReviewTable();
+      } else if (tab === 'supervisor') {
+        titleEl.innerText = 'مراجعة رؤساء الأقسام والاعتماد التنفيذي';
+        subEl.innerText = 'الحالات المحالة لرؤساء الأقسام للتدقيق والاعتماد النهائي، أو طلب إعادة مراجعة الحالة من الموظف المختص.';
+        renderSupervisorTable();
+      } else if (tab === 'status') {
+        titleEl.innerText = 'الحالة الحالية واستعلام خدمة العملاء';
+        subEl.innerText = 'لوحة استعلام كاملة موجهة لموظفي خدمة العملاء للتحقق من تفاصيل المخالفة والقرارات السابقة.';
+      } else if (tab === 'rep-fines') {
+        titleEl.innerText = 'تقرير المخالفات الشامل';
+        subEl.innerText = 'عرض وتجميع كافة المخالفات والاعتراضات مع فلاتر متعددة للتحليل والتدقيق.';
+        populateFinesReportFiltersOptions();
+        renderFinesReportTable();
+      } else if (tab === 'rep-review') {
+        titleEl.innerText = 'تقرير أداء وحالات المراجعة للموظفين';
+        subEl.innerText = 'متابعة أداء الموظفين وإحصائيات الحالات المنجزة والقائمة بانتظار المراجعة.';
+        populateReviewReportFiltersOptions();
+        renderReviewReportTable();
+      }
+    }
+
+    function togglePermitInput(val) {
+      const container = document.getElementById('permitNumContainer');
+      if (val === 'Permit') container.classList.remove('hidden');
+      else container.classList.add('hidden');
+    }
+
+    function updatePlateCodes() {
+      const src = document.getElementById('plateSource').value;
+      const codeSel = document.getElementById('plateCode');
+      codeSel.innerHTML = '';
+      if (src === 'SHJ') {
+        codeSel.innerHTML = '<option value="أ">أ</option><option value="ب">ب</option><option value="2">2</option><option value="3">3</option>';
+      } else {
+        codeSel.innerHTML = '<option value="A">A</option><option value="B">B</option><option value="C">C</option>';
+      }
+    }
+
+    function handleCreateAppeal(e) {
+      e.preventDefault();
+      const fineNo = document.getElementById('fineNumber').value;
+      const mainType = document.getElementById('mainAppealType').value;
+      const cust = document.getElementById('custName').value;
+      const eid = document.getElementById('custEid').value;
+      const phone = document.getElementById('custPhone').value;
+      const email = document.getElementById('custEmail').value;
+      const div = document.getElementById('sendToDivision').value;
+      const emp = document.getElementById('assignedEmployee').value;
+      const date = document.getElementById('fineDate').value || new Date().toISOString().split('T')[0];
+      const desc = document.getElementById('complaintDesc').value;
+
+      const newId = "APP-" + fineNo;
+      mockData.unshift({
+        id: newId,
+        fineNo: fineNo,
+        fineDate: date,
+        plate: "SHJ | أ | " + document.getElementById('plateNumber').value,
+        mainType: mainType,
+        custName: cust,
+        custEid: eid,
+        custPhone: phone,
+        custEmail: email,
+        permitNo: document.getElementById('permitNumber').value || 'لا يوجد',
+        smsNo: document.getElementById('smsTicketNumber').value || 'لا يوجد',
+        sender: "محمد محسني",
+        division: div,
+        employee: emp,
+        status: "Pending Review",
+        desc: desc,
+        history: [
+          { date: new Date().toISOString().replace('T', ' ').substring(0, 16), user: "محمد محسني (موظف إدخال)", role: "إنشاء الطلب", action: "تقديم اعتراض جديد", notes: "تم تسجيل الاعتراض الميداني إلكترونياً." }
+        ]
+      });
+
+      alert("تم تسجيل الاعتراض بنجاح برقم: " + newId);
+      switchTab('review');
+    }
+
+    function renderReviewTable() {
+      const tbody = document.getElementById('reviewTableBody');
+      const searchVal = (document.getElementById('reviewSearch')?.value || '').toLowerCase();
+      tbody.innerHTML = '';
+
+      const filtered = mockData.filter(item => 
+        item.id.toLowerCase().includes(searchVal) || 
+        item.fineNo.toLowerCase().includes(searchVal) ||
+        item.custName.toLowerCase().includes(searchVal) ||
+        item.plate.toLowerCase().includes(searchVal)
+      );
+
+      filtered.forEach(item => {
+        let badge = `<span class="badge-pending px-2.5 py-1 rounded-full text-[11px] font-bold">بانتظار المراجعة</span>`;
+        if (item.status === 'Supervisor Review') badge = `<span class="badge-supervisor px-2.5 py-1 rounded-full text-[11px] font-bold">تم التحويل إلى رئيس القسم</span>`;
+        else if (item.status === 'Re-Review Request') badge = `<span class="badge-re-review px-2.5 py-1 rounded-full text-[11px] font-bold">طلب إعادة مراجعة</span>`;
+        else if (item.status === 'Employee Review' || item.status === 'محول لموظف') badge = `<span class="badge-info px-2.5 py-1 rounded-full text-[11px] font-bold">محول لموظف</span>`;
+        else if (item.status.includes('صحيحة') || item.status.includes('Correct')) badge = `<span class="badge-correct px-2.5 py-1 rounded-full text-[11px] font-bold">مخالفة صحيحة</span>`;
+        else if (item.status.includes('خاطئة') || item.status.includes('Wrong')) badge = `<span class="badge-wrong px-2.5 py-1 rounded-full text-[11px] font-bold">مخالفة خاطئة</span>`;
+
+        tbody.innerHTML += `
+          <tr class="hover:bg-slate-50 transition border-b">
+            <td class="p-3 font-bold font-mono text-slate-800">${item.id}<br><span class="text-[10px] text-slate-400">غرامة: ${item.fineNo}</span></td>
+            <td class="p-3 font-mono text-slate-600">${item.plate}</td>
+            <td class="p-3 text-slate-700 font-medium">${item.custName}</td>
+            <td class="p-3 text-slate-500">${item.fineDate}</td>
+            <td class="p-3 text-slate-600">
+              <div class="font-semibold text-slate-800">${item.division}</div>
+              <div class="text-[10px] text-brand-700 font-bold">${item.employee || '-'}</div>
+            </td>
+            <td class="p-3">${badge}</td>
+            <td class="p-3 text-left">
+              <button onclick="openDrawerFor('${item.id}')" class="px-3 py-1 bg-brand-600 hover:bg-brand-700 text-white rounded text-[11px] font-bold">مراجعة الحالة</button>
+            </td>
+          </tr>
+        `;
+      });
+    }
+
+    function renderSupervisorTable() {
+      const tbody = document.getElementById('supervisorTableBody');
+      tbody.innerHTML = '';
+      const sups = mockData.filter(i => i.status === 'Supervisor Review');
+      document.getElementById('sup-badge').innerText = sups.length;
+      if (sups.length > 0) document.getElementById('sup-badge').classList.remove('hidden');
+
+      sups.forEach(item => {
+        const lastAction = item.history && item.history.length > 0 ? item.history[item.history.length - 1] : { user: 'سليمان طالب (المراجع الأول - موظف)', notes: 'توصية بإلغاء المخالفة' };
+        tbody.innerHTML += `
+          <tr class="hover:bg-slate-50 transition border-b">
+            <td class="p-3 font-bold font-mono text-slate-800">${item.id}<br><span class="text-[10px] text-slate-400">غرامة: ${item.fineNo}</span></td>
+            <td class="p-3 font-mono text-slate-600">${item.plate}</td>
+            <td class="p-3 text-brand-700 font-semibold">${item.mainType}</td>
+            <td class="p-3 text-slate-700 font-bold">${lastAction.user}</td>
+            <td class="p-3 text-amber-800 italic truncate max-w-xs">${lastAction.notes}</td>
+            <td class="p-3"><span class="badge-supervisor px-2.5 py-1 rounded-full text-[11px] font-bold">تم التحويل إلى رئيس القسم</span></td>
+            <td class="p-3 text-left">
+              <button onclick="openDrawerFor('${item.id}')" class="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded text-[11px] font-bold">اعتماد رئيس القسم</button>
+            </td>
+          </tr>
+        `;
+      });
+    }
+
+    /* === وظائف تقارير المخالفات (Report A: Fines Report) === */
+
+    function populateFinesReportFiltersOptions() {
+      const creators = new Set();
+      const finalDecs = new Set();
+
+      mockData.forEach(item => {
+        if (item.sender) creators.add(item.sender);
+        if (item.history) {
+          item.history.forEach(h => {
+            if (h.role === 'القرار النهائي') {
+              const cleanName = h.user.split('(')[0].trim();
+              finalDecs.add(cleanName);
+            }
+          });
+        }
+      });
+
+      const creatorSel = document.getElementById('creatorEmpFilter');
+      creatorSel.innerHTML = '<option value="">جميع الموظفين المدخلين</option>';
+      creators.forEach(c => {
+        creatorSel.innerHTML += `<option value="${c}">${c}</option>`;
+      });
+
+      const finalSel = document.getElementById('finalDecEmpFilter');
+      finalSel.innerHTML = '<option value="">جميع صاحبي القرار النهائي</option>';
+      finalDecs.forEach(f => {
+        finalSel.innerHTML += `<option value="${f}">${f}</option>`;
+      });
+    }
+
+    function getFinalDecisionUser(item) {
+      if (!item.history) return '-';
+      const finalHist = item.history.slice().reverse().find(h => h.role === 'القرار النهائي');
+      if (finalHist) {
+        return finalHist.user.split('(')[0].trim();
+      }
+      return '-';
+    }
+
+    function renderFinesReportTable() {
+      const tbody = document.getElementById('finesReportTableBody');
+      tbody.innerHTML = '';
+
+      // قراءة الفلاتر
+      const checkedStatuses = Array.from(document.querySelectorAll('.fineStatusFilter:checked')).map(cb => cb.value);
+      const dateFrom = document.getElementById('fineDateFrom').value;
+      const dateTo = document.getElementById('fineDateTo').value;
+      const creator = document.getElementById('creatorEmpFilter').value;
+      const finalDec = document.getElementById('finalDecEmpFilter').value;
+
+      const filtered = mockData.filter(item => {
+        // فلتر الحالة
+        if (checkedStatuses.length > 0) {
+          let match = false;
+          const isCorrect = item.status.includes('صحيحة') || item.status.includes('Correct');
+          const isWrong = item.status.includes('خاطئة') || item.status.includes('Wrong');
+          const isPending = !isCorrect && !isWrong;
+
+          if (checkedStatuses.includes('Correct') && isCorrect) match = true;
+          if (checkedStatuses.includes('Wrong') && isWrong) match = true;
+          if (checkedStatuses.includes('Pending') && isPending) match = true;
+
+          if (!match) return false;
+        }
+
+        // فلتر التاريخ
+        if (dateFrom && item.fineDate < dateFrom) return false;
+        if (dateTo && item.fineDate > dateTo) return false;
+
+        // فلتر موظف الإدخال
+        if (creator && item.sender !== creator) return false;
+
+        // فلتر موظف القرار النهائي
+        if (finalDec) {
+          const finalUser = getFinalDecisionUser(item);
+          if (finalUser !== finalDec) return false;
+        }
+
+        return true;
+      });
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-400 italic">لا توجد بيانات تطابق الفلاتر المحددة.</td></tr>`;
+        return;
+      }
+
+      filtered.forEach(item => {
+        let badge = `<span class="badge-pending px-2.5 py-1 rounded-full text-[11px] font-bold">بانتظار المراجعة</span>`;
+        if (item.status.includes('صحيحة') || item.status.includes('Correct')) badge = `<span class="badge-correct px-2.5 py-1 rounded-full text-[11px] font-bold">مخالفة صحيحة</span>`;
+        else if (item.status.includes('خاطئة') || item.status.includes('Wrong')) badge = `<span class="badge-wrong px-2.5 py-1 rounded-full text-[11px] font-bold">مخالفة خاطئة</span>`;
+
+        const finalUser = getFinalDecisionUser(item);
+
+        tbody.innerHTML += `
+          <tr class="hover:bg-slate-50 transition border-b">
+            <td class="p-3 font-bold font-mono text-slate-800">${item.id}<br><span class="text-[10px] text-slate-400">غرامة: ${item.fineNo}</span></td>
+            <td class="p-3 font-mono text-slate-600">${item.plate}</td>
+            <td class="p-3 text-slate-500">${item.fineDate}</td>
+            <td class="p-3 text-slate-700 font-medium"><i class="fa-solid fa-user-pen text-slate-400 ml-1"></i> ${item.sender || '-'}</td>
+            <td class="p-3 text-slate-700 font-bold"><i class="fa-solid fa-user-check text-brand-600 ml-1"></i> ${finalUser}</td>
+            <td class="p-3">${badge}</td>
+          </tr>
+        `;
+      });
+    }
+
+    function resetFinesReportFilters() {
+      document.querySelectorAll('.fineStatusFilter').forEach(cb => cb.checked = false);
+      document.getElementById('fineDateFrom').value = '';
+      document.getElementById('fineDateTo').value = '';
+      document.getElementById('creatorEmpFilter').value = '';
+      document.getElementById('finalDecEmpFilter').value = '';
+      renderFinesReportTable();
+    }
+
+    /* === وظائف تقارير المراجعة (Report B: Review Performance Report) === */
+
+    function populateReviewReportFiltersOptions() {
+      const employees = new Set();
+
+      // تجميع جميع الموظفين المذكورين
+      Object.values(employeesByDept).flat().forEach(e => employees.add(e));
+      mockData.forEach(item => {
+        if (item.employee) employees.add(item.employee);
+      });
+
+      const empSel = document.getElementById('reviewEmpFilter');
+      empSel.innerHTML = '<option value="">جميع الموظفين</option>';
+      employees.forEach(e => {
+        empSel.innerHTML += `<option value="${e}">${e}</option>`;
+      });
+    }
+
+    function renderReviewReportTable() {
+      const tbody = document.getElementById('reviewReportTableBody');
+      tbody.innerHTML = '';
+
+      const empFilter = document.getElementById('reviewEmpFilter').value;
+      const dateFrom = document.getElementById('revDateFrom').value;
+      const dateTo = document.getElementById('revDateTo').value;
+      const pendingFilter = document.getElementById('pendingCasesFilter').value;
+      const completedFilter = document.getElementById('completedCasesFilter').value;
+
+      // جمع بيانات كل الموظفين
+      const allEmps = new Set();
+      Object.values(employeesByDept).flat().forEach(e => allEmps.add(e));
+      mockData.forEach(item => { if (item.employee) allEmps.add(item.employee); });
+
+      const reportList = [];
+
+      allEmps.forEach(empName => {
+        if (empFilter && empName !== empFilter) return;
+
+        // حساب الحالات المسندة لهذا الموظف مع فلتر التاريخ
+        let totalAssigned = 0;
+        let pendingCases = 0;
+        let completedCases = 0;
+
+        mockData.forEach(item => {
+          // التحقق من فلتر التاريخ على تاريخ الشكوى
+          if (dateFrom && item.fineDate < dateFrom) return;
+          if (dateTo && item.fineDate > dateTo) return;
+
+          // هل الموظف هو المراجع الحالي أو أجرى مراجعة مسبقة؟
+          const isCurrentEmp = (item.employee === empName);
+          const hasInHistory = item.history && item.history.some(h => h.user.includes(empName));
+
+          if (isCurrentEmp || hasInHistory) {
+            totalAssigned++;
+            const isFinished = item.status.includes('صحيحة') || item.status.includes('خاطئة') || item.status.includes('Correct') || item.status.includes('Wrong');
+            if (isFinished) {
+              completedCases++;
+            } else {
+              pendingCases++;
+            }
+          }
+        });
+
+        // تطبيق فلتر حالات بانتظار المراجعة
+        if (pendingFilter === 'has_pending' && pendingCases === 0) return;
+        if (pendingFilter === 'no_pending' && pendingCases > 0) return;
+
+        // تطبيق فلتر الحالات المنتهية
+        if (completedFilter === 'has_completed' && completedCases === 0) return;
+        if (completedFilter === 'no_completed' && completedCases > 0) return;
+
+        if (totalAssigned > 0 || empFilter) {
+          const rate = totalAssigned > 0 ? Math.round((completedCases / totalAssigned) * 100) : 0;
+          reportList.push({
+            name: empName,
+            total: totalAssigned,
+            pending: pendingCases,
+            completed: completedCases,
+            rate: rate
+          });
+        }
+      });
+
+      if (reportList.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-slate-400 italic">لا توجد سجلات تطابق الفلاتر المحددة.</td></tr>`;
+        return;
+      }
+
+      reportList.forEach(r => {
+        tbody.innerHTML += `
+          <tr class="hover:bg-slate-50 transition border-b">
+            <td class="p-3 font-bold text-slate-800 flex items-center gap-2">
+              <div class="w-7 h-7 rounded-full bg-brand-100 text-brand-800 font-bold flex items-center justify-center text-xs">
+                ${r.name.substring(0, 2)}
+              </div>
+              <span>${r.name}</span>
+            </td>
+            <td class="p-3 font-semibold text-slate-700 font-mono">${r.total}</td>
+            <td class="p-3">
+              <span class="bg-amber-100 text-amber-800 px-2.5 py-1 rounded-full font-bold font-mono text-[11px]">${r.pending}</span>
+            </td>
+            <td class="p-3">
+              <span class="bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-full font-bold font-mono text-[11px]">${r.completed}</span>
+            </td>
+            <td class="p-3">
+              <div class="flex items-center gap-2">
+                <div class="w-24 bg-slate-200 rounded-full h-2 overflow-hidden">
+                  <div class="bg-brand-600 h-2 rounded-full" style="width: ${r.rate}%"></div>
+                </div>
+                <span class="font-bold text-slate-700 font-mono text-[11px]">${r.rate}%</span>
+              </div>
+            </td>
+          </tr>
+        `;
+      });
+    }
+
+    function resetReviewReportFilters() {
+      document.getElementById('reviewEmpFilter').value = '';
+      document.getElementById('revDateFrom').value = '';
+      document.getElementById('revDateTo').value = '';
+      document.getElementById('pendingCasesFilter').value = '';
+      document.getElementById('completedCasesFilter').value = '';
+      renderReviewReportTable();
+    }
+
+    /* === التصدير لتقرير المخالفات وتقرير المراجعة === */
+
+    function exportFinesReportToExcel() {
+      const rows = [];
+      const trs = document.querySelectorAll('#finesReportTableBody tr');
+      trs.forEach(tr => {
+        const tds = tr.querySelectorAll('td');
+        if (tds.length >= 6) {
+          rows.push({
+            "رقم الاعتراض/المخالفة": tds[0].innerText.replace(/\n/g, ' '),
+            "اللوحة": tds[1].innerText,
+            "تاريخ المخالفة": tds[2].innerText,
+            "مدخل الطلب": tds[3].innerText,
+            "صاحب القرار النهائي": tds[4].innerText,
+            "الحالة": tds[5].innerText
+          });
+        }
+      });
+
+      if (rows.length === 0) { alert("لا توجد بيانات للتصدير!"); return; }
+      const worksheet = XLSX.utils.json_to_sheet(rows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "تقرير المخالفات");
+      XLSX.writeFile(workbook, "تقرير_المخالفات_المفصل.xlsx");
+    }
+
+    function exportFinesReportToPDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('l', 'mm', 'a4');
+      doc.setFont("helvetica", "bold");
+      doc.text("Fines Detailed Report - تقرير المخالفات", 14, 15);
+
+      const headers = [["الحالة", "القرار النهائي", "مدخل الطلب", "التاريخ", "اللوحة", "المخالفة / الاعتراض"]];
+      const data = [];
+
+      const trs = document.querySelectorAll('#finesReportTableBody tr');
+      trs.forEach(tr => {
+        const tds = tr.querySelectorAll('td');
+        if (tds.length >= 6) {
+          data.push([
+            tds[5].innerText,
+            tds[4].innerText,
+            tds[3].innerText,
+            tds[2].innerText,
+            tds[1].innerText,
+            tds[0].innerText.replace(/\n/g, ' ')
+          ]);
+        }
+      });
+
+      if (data.length === 0) { alert("لا توجد بيانات للتصدير!"); return; }
+
+      doc.autoTable({
+        head: headers,
+        body: data,
+        startY: 22,
+        theme: 'grid',
+        headStyles: { fillColor: [6, 78, 59] }
+      });
+      doc.save("تقرير_المخالفات.pdf");
+    }
+
+    function exportReviewReportToExcel() {
+      const rows = [];
+      const trs = document.querySelectorAll('#reviewReportTableBody tr');
+      trs.forEach(tr => {
+        const tds = tr.querySelectorAll('td');
+        if (tds.length >= 5) {
+          rows.push({
+            "اسم الموظف": tds[0].innerText,
+            "إجمالي الحالات": tds[1].innerText,
+            "بانتظار المراجعة": tds[2].innerText,
+            "الحالات المنتهية": tds[3].innerText,
+            "نسبة الإنجاز": tds[4].innerText
+          });
+        }
+      });
+
+      if (rows.length === 0) { alert("لا توجد بيانات للتصدير!"); return; }
+      const worksheet = XLSX.utils.json_to_sheet(rows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "تقرير أداء المراجعين");
+      XLSX.writeFile(workbook, "تقرير_أداء_المراجعين.xlsx");
+    }
+
+    function exportReviewReportToPDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('p', 'mm', 'a4');
+      doc.setFont("helvetica", "bold");
+      doc.text("Reviewers Performance Report - تقرير أداء المراجعين", 14, 15);
+
+      const headers = [["نسبة الإنجاز", "الحالات المنتهية", "بانتظار المراجعة", "الإجمالي", "اسم الموظف"]];
+      const data = [];
+
+      const trs = document.querySelectorAll('#reviewReportTableBody tr');
+      trs.forEach(tr => {
+        const tds = tr.querySelectorAll('td');
+        if (tds.length >= 5) {
+          data.push([
+            tds[4].innerText,
+            tds[3].innerText,
+            tds[2].innerText,
+            tds[1].innerText,
+            tds[0].innerText
+          ]);
+        }
+      });
+
+      if (data.length === 0) { alert("لا توجد بيانات للتصدير!"); return; }
+
+      doc.autoTable({
+        head: headers,
+        body: data,
+        startY: 22,
+        theme: 'grid',
+        headStyles: { fillColor: [6, 78, 59] }
+      });
+      doc.save("تقرير_أداء_المراجعين.pdf");
+    }
+
+    /* === التصدير العام للشرائح الأخرى === */
+
+    function getExportData(mode) {
+      let dataSet = [];
+      if (mode === 'supervisor') {
+        dataSet = mockData.filter(i => i.status === 'Supervisor Review');
+      } else {
+        const searchVal = (document.getElementById('reviewSearch')?.value || '').toLowerCase();
+        dataSet = mockData.filter(item => 
+          item.id.toLowerCase().includes(searchVal) || 
+          item.fineNo.toLowerCase().includes(searchVal) ||
+          item.custName.toLowerCase().includes(searchVal) ||
+          item.plate.toLowerCase().includes(searchVal)
+        );
+      }
+
+      return dataSet.map(item => ({
+        "رقم الاعتراض": item.id,
+        "رقم المخالفة": item.fineNo,
+        "اللوحة": item.plate,
+        "اسم المتعامل": item.custName,
+        "الهاتف": item.custPhone,
+        "تاريخ المخالفة": item.fineDate,
+        "نوع الاعتراض": item.mainType,
+        "القسم": item.division,
+        "الموظف المسؤول": item.employee || '-',
+        "الحالة": item.status
+      }));
+    }
+
+    function exportToExcel(mode) {
+      const data = getExportData(mode);
+      if (data.length === 0) {
+        alert("لا توجد بيانات متاحة للتصدير!");
+        return;
+      }
+      
+      const worksheet = XLSX.utils.json_to_sheet(data);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, mode === 'supervisor' ? "مراجعة المشرفين" : "الاعتراضات");
+      
+      const fileName = mode === 'supervisor' ? "تقرير_اعتمادات_المشرفين.xlsx" : "تقرير_الاعتراضات.xlsx";
+      XLSX.writeFile(workbook, fileName);
+    }
+
+    function exportToPDF(mode) {
+      const data = getExportData(mode);
+      if (data.length === 0) {
+        alert("لا توجد بيانات متاحة للتصدير!");
+        return;
+      }
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('l', 'mm', 'a4');
+
+      const title = mode === 'supervisor' ? "تقرير طلبات الاعتراض - مراجعة المشرفين" : "تقرير الاعتراضات والشكاوى العامة";
+      const headers = [["الحالة", "الموظف المسؤول", "القسم", "التاريخ", "المتعامل", "اللوحة", "رقم المخالفة", "رقم الاعتراض"]];
+
+      const rows = data.map(row => [
+        row["الحالة"],
+        row["الموظف المسؤول"],
+        row["القسم"],
+        row["تاريخ المخالفة"],
+        row["اسم المتعامل"],
+        row["اللوحة"],
+        row["رقم المخالفة"],
+        row["رقم الاعتراض"]
+      ]);
+
+      doc.setFont("helvetica", "bold");
+      doc.text(title, 14, 15);
+
+      doc.autoTable({
+        head: headers,
+        body: rows,
+        startY: 22,
+        theme: 'grid',
+        styles: { font: 'helvetica', fontSize: 9, alignment: 'right' },
+        headStyles: { fillColor: [6, 78, 59], textColor: [255, 255, 255] }
+      });
+
+      const fileName = mode === 'supervisor' ? "تقرير_المشرفين.pdf" : "تقرير_الاعتراضات.pdf";
+      doc.save(fileName);
+    }
+
+    function openDrawerFor(id) {
+      const item = mockData.find(i => i.id === id);
+      if (!item) return;
+
+      activeCaseId = id;
+      document.getElementById('drawerAppealId').innerText = item.id;
+      document.getElementById('drawerFineNo').innerText = item.fineNo;
+      document.getElementById('drawerFineDate').innerText = item.fineDate;
+      document.getElementById('drawerCustName').innerText = item.custName;
+      document.getElementById('drawerCustEid').innerText = item.custEid || '-';
+      document.getElementById('drawerCustPhone').innerText = item.custPhone;
+      document.getElementById('drawerCustEmail').innerText = item.custEmail || '-';
+      document.getElementById('drawerPermitNo').innerText = item.permitNo;
+      document.getElementById('drawerSmsNo').innerText = item.smsNo;
+      document.getElementById('drawerCurrentEmployee').innerText = (item.division || '') + ' - ' + (item.employee || 'غير محدد');
+      document.getElementById('drawerDesc').innerText = item.desc;
+
+      renderPreviousDecisions(item.history || []);
+
+      const btnSupLabel = document.getElementById('btnDecSupLabel');
+
+      if (currentTabMode === 'supervisor') {
+        btnSupLabel.innerText = "طلب إعادة مراجعة";
+      } else {
+        btnSupLabel.innerText = "تصعيد لرئيس القسم";
+      }
+
+      selectDecision('Correct Fine');
+      document.getElementById('reviewDrawer').classList.remove('hidden');
+    }
+
+    function renderPreviousDecisions(history) {
+      const container = document.getElementById('previousDecisionsContainer');
+      const countBadge = document.getElementById('historyCount');
+      container.innerHTML = '';
+      
+      countBadge.innerText = (history.length || 0) + " سجلات";
+
+      if (!history || history.length === 0) {
+        container.innerHTML = `<p class="text-slate-400 italic text-[11px] p-2 text-center">لا توجد قرارات أو توجيهات سابقة لهذه الشكوى.</p>`;
+        return;
+      }
+
+      history.forEach((h) => {
+        container.innerHTML += `
+          <div class="bg-white p-2.5 rounded-lg border border-blue-100 shadow-sm space-y-1">
+            <div class="flex items-center justify-between text-[11px]">
+              <span class="font-bold text-slate-800 flex items-center gap-1">
+                <i class="fa-solid fa-user-check text-blue-600"></i> ${h.user}
+              </span>
+              <span class="text-[10px] text-slate-400 font-mono">${h.date}</span>
+            </div>
+            <div class="flex items-center justify-between text-[10px] text-slate-500">
+              <span><strong>الإجراء:</strong> <span class="text-blue-700 font-semibold">${h.action}</span></span>
+              <span class="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">${h.role || 'مراجع'}</span>
+            </div>
+            <p class="text-[11px] text-slate-700 bg-slate-50 p-1.5 rounded border border-slate-100 italic">
+              "${h.notes || 'لا توجد ملاحظات إضافية'}"
+            </p>
+          </div>
+        `;
+      });
+    }
+
+    function closeDrawer() {
+      document.getElementById('reviewDrawer').classList.add('hidden');
+    }
+
+    function selectDecision(type) {
+      selectedDecisionType = type;
+
+      const btnCorrect = document.getElementById('btnDecCorrect');
+      const btnWrong = document.getElementById('btnDecWrong');
+      const btnSup = document.getElementById('btnDecSup');
+      const btnForwardEmp = document.getElementById('btnDecForwardEmp');
+
+      const notesLabel = document.getElementById('notesLabel');
+      const notesInput = document.getElementById('drawerNotes');
+
+      [btnCorrect, btnWrong, btnSup, btnForwardEmp].forEach(b => {
+        b.classList.remove('border-emerald-500', 'border-rose-500', 'border-amber-500', 'border-indigo-500', 'bg-slate-50');
+        b.classList.add('border-slate-200');
+      });
+
+      const supHeadContainer = document.getElementById('supHeadContainer');
+      const empForwardContainer = document.getElementById('empForwardContainer');
+
+      supHeadContainer.classList.add('hidden');
+      empForwardContainer.classList.add('hidden');
+
+      if (type === 'Correct Fine') {
+        btnCorrect.classList.add('border-emerald-500', 'bg-slate-50');
+        notesLabel.innerText = "ملاحظات / أسباب القرار *";
+        notesInput.placeholder = "أدخل أسباب تأكيد صحة المخالفة...";
+      } else if (type === 'Wrong Fine') {
+        btnWrong.classList.add('border-rose-500', 'bg-slate-50');
+        notesLabel.innerText = "ملاحظات / أسباب إعفاء الشكوى *";
+        notesInput.placeholder = "أدخل أسباب إلغاء المخالفة...";
+      } else if (type === 'Supervisor Review') {
+        btnSup.classList.add('border-amber-500', 'bg-slate-50');
+        if (currentTabMode !== 'supervisor') {
+          supHeadContainer.classList.remove('hidden');
+        }
+        notesLabel.innerText = "أسباب التصعيد / إعادة المراجعة *";
+        notesInput.placeholder = "أدخل سبب توجيه الشكوى لرئيس القسم أو الملاحظات المطلوبة...";
+      } else if (type === 'Forward To Employee') {
+        btnForwardEmp.classList.add('border-indigo-500', 'bg-slate-50');
+        empForwardContainer.classList.remove('hidden');
+        notesLabel.innerText = "التوجيهات والتعليمات للموظف المعني *";
+        notesInput.placeholder = "أدخل التعليمات التفصيلية والإجراءات المطلوبة من الموظف المحال إليه...";
+      }
+    }
+
+    function submitDrawerDecision() {
+      const item = mockData.find(i => i.id === activeCaseId);
+      const notes = document.getElementById('drawerNotes').value;
+      const currentDate = new Date().toISOString().replace('T', ' ').substring(0, 16);
+
+      if (selectedDecisionType === 'Forward To Employee') {
+        const team = document.getElementById('empTeamSelect').value;
+        const member = document.getElementById('teamMemberSelect').value;
+
+        if (!team || !member) {
+          alert("يرجى تحديد الفريق والموظف المعني بالتحويل.");
+          return;
+        }
+        if (!notes.trim()) {
+          alert("يرجى كتابة أسباب التوجيه أو التوجيهات التفصيلية للموظف المختار.");
+          return;
+        }
+
+        item.status = 'محول لموظف';
+        item.division = team;
+        item.employee = member;
+
+        item.history.push({
+          date: currentDate,
+          user: currentTabMode === 'supervisor' ? "رئيس القسم المشرف" : "المراجع الحالي",
+          role: "إرسال إلى موظف",
+          action: `تحويل الشكوى إلى الموظف (${member})`,
+          notes: notes
+        });
+
+      } else if (selectedDecisionType === 'Correct Fine') {
+        item.status = 'مخالفة صحيحة (مرفوض)';
+        item.history.push({
+          date: currentDate,
+          user: currentTabMode === 'supervisor' ? "رئيس القسم (القرار النهائي)" : (item.employee || "المراجع"),
+          role: currentTabMode === 'supervisor' ? "القرار النهائي" : "القرار النهائي",
+          action: "تأكيد المخالفة (صحيحة)",
+          notes: notes || "تم تأكيد صحة المخالفة."
+        });
+      } else if (selectedDecisionType === 'Wrong Fine') {
+        item.status = 'مخالفة خاطئة (ملغاة)';
+        item.history.push({
+          date: currentDate,
+          user: currentTabMode === 'supervisor' ? "رئيس القسم (القرار النهائي)" : (item.employee || "المراجع"),
+          role: currentTabMode === 'supervisor' ? "القرار النهائي" : "القرار النهائي",
+          action: "إلغاء المخالفة (خاطئة)",
+          notes: notes || "تم الموافقة على إلغاء المخالفة."
+        });
+      } else if (selectedDecisionType === 'Supervisor Review') {
+        if (currentTabMode === 'supervisor') {
+          item.status = 'Re-Review Request';
+          item.history.push({
+            date: currentDate,
+            user: "رئيس القسم المشرف",
+            role: "طلب إعادة مراجعة",
+            action: "إعادة توجيه للموظف المختص",
+            notes: notes || "يرجى إعادة مراجعة الحالة."
+          });
+        } else {
+          const headVal = document.getElementById('supervisorHeadSelect').value || 'رئيس القسم المشرف';
+          item.status = 'Supervisor Review';
+          item.employee = headVal;
+          item.history.push({
+            date: currentDate,
+            user: item.employee || "المراجع الأول",
+            role: "تصعيد لرئيس القسم",
+            action: `تحويل إلى ${headVal}`,
+            notes: notes || "تم التحويل إلى رئيس القسم للتدقيق والاعتماد."
+          });
+        }
+      }
+
+      closeDrawer();
+      renderReviewTable();
+      renderSupervisorTable();
+      alert("تم تسجيل القرار والتوجيه بنجاح.");
+    }
+
+    function searchCurrentStatus() {
+      const input = document.getElementById('statusSearchInput').value.trim().toLowerCase();
+      const container = document.getElementById('statusResultContainer');
+
+      if (!input) {
+        alert("يرجى إدخال رقم المخالفة أو رقم الاعتراض للبحث.");
+        return;
+      }
+
+      const item = mockData.find(i => 
+        i.fineNo.toLowerCase() === input || 
+        i.id.toLowerCase() === input || 
+        i.plate.toLowerCase().includes(input)
+      );
+
+      if (!item) {
+        container.classList.remove('hidden');
+        container.innerHTML = `
+          <div class="bg-white p-8 rounded-xl border border-slate-200 shadow-sm text-center">
+            <i class="fa-solid fa-circle-exclamation text-amber-500 text-3xl mb-3"></i>
+            <h4 class="font-bold text-slate-800 text-sm">لم يتم العثور على أية نتائج!</h4>
+            <p class="text-xs text-slate-500 mt-1">تأكد من كتابة رقم المخالفة أو الاعتراض الصحيح.</p>
+          </div>
+        `;
+        return;
+      }
+
+      let statusBadge = `<span class="badge-pending px-3 py-1 rounded-full text-xs font-bold">قيد المراجعة</span>`;
+      if (item.status === 'Supervisor Review') statusBadge = `<span class="badge-supervisor px-3 py-1 rounded-full text-xs font-bold">تم التحويل إلى رئيس القسم</span>`;
+      else if (item.status === 'Re-Review Request') statusBadge = `<span class="badge-re-review px-3 py-1 rounded-full text-xs font-bold">طلب إعادة مراجعة</span>`;
+      else if (item.status === 'Employee Review' || item.status === 'محول لموظف') statusBadge = `<span class="badge-info px-3 py-1 rounded-full text-xs font-bold">محولة لموظف مختص</span>`;
+      else if (item.status.includes('صحيحة') || item.status.includes('Correct')) statusBadge = `<span class="badge-correct px-3 py-1 rounded-full text-xs font-bold">مرفوض - المخالفة صحيحة</span>`;
+      else if (item.status.includes('خاطئة') || item.status.includes('Wrong')) statusBadge = `<span class="badge-wrong px-3 py-1 rounded-full text-xs font-bold">مقبول - تم إلغاء المخالفة</span>`;
+
+      let historyHtml = '';
+      if (item.history && item.history.length > 0) {
+        item.history.forEach((h) => {
+          historyHtml += `
+            <div class="relative pl-6 pb-4 border-r-2 border-brand-200 mr-2 pr-4 last:border-r-0">
+              <div class="absolute -right-[7px] top-1 w-3 h-3 bg-brand-600 rounded-full border-2 border-white"></div>
+              <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-1">
+                <div class="flex items-center justify-between text-xs">
+                  <span class="font-bold text-slate-800"><i class="fa-solid fa-user-circle text-brand-600"></i> ${h.user}</span>
+                  <span class="text-[10px] text-slate-400 font-mono"><i class="fa-regular fa-clock"></i> ${h.date}</span>
+                </div>
+                <div class="text-[11px] text-slate-600"><strong>نوع القرار / الإجراء:</strong> <span class="text-brand-800 font-semibold">${h.action}</span> (${h.role})</div>
+                <p class="text-xs text-slate-700 bg-white p-2 rounded border border-slate-100 italic mt-1">"${h.notes || 'لا يوجد ملاحظات إضافية'}"</p>
+              </div>
+            </div>
+          `;
+        });
+      } else {
+        historyHtml = `<p class="text-xs text-slate-400 italic">لا توجد سجلات قرارات معتمدة بعد.</p>`;
+      }
+
+      container.classList.remove('hidden');
+      container.innerHTML = `
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          
+          <div class="bg-brand-900 text-white p-5 flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <span class="text-xs text-brand-200">رقم طلب الاعتراض:</span>
+              <h3 class="text-lg font-bold font-mono text-white">${item.id}</h3>
+            </div>
+            <div>
+              <span class="text-xs text-brand-200">الحالة الحالية للمراجعة:</span>
+              <div class="mt-1">${statusBadge}</div>
+            </div>
+          </div>
+
+          <div class="p-6 space-y-6">
+            
+            <div class="space-y-2">
+              <h4 class="text-xs font-bold text-slate-800 border-b pb-1.5 flex items-center gap-2">
+                <i class="fa-solid fa-address-card text-brand-600"></i> بيانات المتعامل وصاحب الشكوى
+              </h4>
+              <div class="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-xl border text-xs">
+                <div><span class="text-slate-400 block mb-0.5">اسم المتعامل:</span> <strong class="text-slate-800 text-sm">${item.custName}</strong></div>
+                <div><span class="text-slate-400 block mb-0.5">رقم الهوية:</span> <strong class="font-mono text-slate-800">${item.custEid || '-'}</strong></div>
+                <div><span class="text-slate-400 block mb-0.5">رقم الهاتف:</span> <strong class="text-emerald-700 font-mono">${item.custPhone}</strong></div>
+                <div><span class="text-slate-400 block mb-0.5">البريد الإلكتروني:</span> <strong class="text-slate-800 font-mono">${item.custEmail || '-'}</strong></div>
+              </div>
+            </div>
+
+            <div class="space-y-2">
+              <h4 class="text-xs font-bold text-slate-800 border-b pb-1.5 flex items-center gap-2">
+                <i class="fa-solid fa-car text-brand-600"></i> تفاصيل المخالفة والمركبة
+              </h4>
+              <div class="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-xl border text-xs">
+                <div><span class="text-slate-400 block mb-0.5">رقم المخالفة:</span> <strong class="font-mono text-slate-900 text-sm">${item.fineNo}</strong></div>
+                <div><span class="text-slate-400 block mb-0.5">تاريخ المخالفة:</span> <strong class="text-slate-800">${item.fineDate}</strong></div>
+                <div><span class="text-slate-400 block mb-0.5">تفاصيل اللوحة:</span> <strong class="font-mono text-brand-800 font-bold">${item.plate}</strong></div>
+                <div><span class="text-slate-400 block mb-0.5">رقم التصريح / SMS:</span> <strong class="text-amber-700 font-mono">${item.permitNo !== 'لا يوجد' ? item.permitNo : item.smsNo}</strong></div>
+              </div>
+            </div>
+
+            <div class="space-y-2">
+              <h4 class="text-xs font-bold text-slate-800 border-b pb-1.5 flex items-center gap-2">
+                <i class="fa-solid fa-user-check text-brand-600"></i> الموظف والمشرف المسؤول عن المراجعة حالياً
+              </h4>
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4 bg-emerald-50/60 border border-emerald-200 p-4 rounded-xl text-xs">
+                <div><span class="text-slate-500 block mb-0.5">القسم/الفريق المسؤول:</span> <strong class="text-brand-900 text-sm">${item.division}</strong></div>
+                <div><span class="text-slate-500 block mb-0.5">اسم الموظف/رئيس القسم الحالي:</span> <strong class="text-emerald-800 text-sm font-bold"><i class="fa-solid fa-user-shield"></i> ${item.employee || 'غير معين بعد'}</strong></div>
+                <div><span class="text-slate-500 block mb-0.5">منشئ الطلب:</span> <strong class="text-slate-700">${item.sender}</strong></div>
+              </div>
+            </div>
+
+            <div class="space-y-2">
+              <h4 class="text-xs font-bold text-slate-800 border-b pb-1.5 flex items-center gap-2">
+                <i class="fa-solid fa-comment-dots text-brand-600"></i> نص الشكوى المقدمة من المتعامل
+              </h4>
+              <div class="bg-slate-50 p-3 rounded-xl border text-xs text-slate-800 italic">
+                "${item.desc}"
+              </div>
+            </div>
+
+            <div class="space-y-3 pt-2">
+              <h4 class="text-xs font-bold text-slate-800 border-b pb-1.5 flex items-center gap-2">
+                <i class="fa-solid fa-timeline text-brand-600"></i> سجل التوجيهات والقرارات السابقة (Decision Stream)
+              </h4>
+              
+              <div class="pt-2">
+                ${historyHtml}
+              </div>
+            </div>
+
+          </div>
+        </div>
+      `;
+    }
+
+    function handleGlobalSearch(val) {
+      if (!val) return;
+      document.getElementById('statusSearchInput').value = val;
+      switchTab('status');
+      searchCurrentStatus();
+    }
+
+    window.onload = function() {
+      updatePlateCodes();
+      renderReviewTable();
+      renderSupervisorTable();
+    };
+  </script>
+</body>
+</html>
